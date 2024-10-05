@@ -1,0 +1,97 @@
+package routes
+
+import (
+	"context"
+	"net/http"
+
+	"go-been-to/middleware"
+	"go-been-to/models"
+	"go-been-to/utils"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
+)
+
+var collection *mongo.Collection
+
+// SetClient sets the MongoDB client to be used in the routes
+func SetClient(client *mongo.Client) {
+	collection = client.Database("go-been-to").Collection("users")
+}
+
+// RegisterUserRoutes registers user-related routes
+func RegisterUserRoutes(r *gin.Engine) {
+	r.POST("/api/auth/signup", signupHandler)
+	r.POST("/api/auth/login", loginHandler)
+	r.Use(middleware.AuthMiddleware())
+}
+
+// Signup handler
+func signupHandler(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := models.ValidateUser(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Hash password
+	hashedPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	user.Password = hashedPassword
+
+	// Insert user into MongoDB
+	_, err = collection.InsertOne(context.Background(), user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+
+	c.Status(http.StatusCreated)
+}
+
+// Login handler
+func loginHandler(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user by email
+	filter := bson.M{"email": user.Email}
+	err := collection.FindOne(context.Background(), filter).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Compare passwords
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(user.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// JWT token
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["userId"] = user.ID.Hex()
+	tokenString, err := token.SignedString([]byte("your_jwt_secret"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	// Return token
+	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+}
