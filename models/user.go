@@ -6,9 +6,9 @@ import (
 )
 
 type User struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty"`
-	Email    string             `bson:"email" validate:"required,email"`
-	Password string             `bson:"password" validate:"required"`
+	ID        primitive.ObjectID `bson:"_id,omitempty"`
+	Email     string             `bson:"email" validate:"required,email"`
+	Password  string             `bson:"password" validate:"required"`
 	Countries []string           `bson:"countries"`
 }
 

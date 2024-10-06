@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"go-been-to/middleware"
@@ -9,21 +10,37 @@ import (
 	"go-been-to/utils"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"golang.org/x/crypto/bcrypt"
 )
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
 var collection *mongo.Collection
 
 // SetClient sets the MongoDB client to be used in the routes
 func SetClient(client *mongo.Client) {
-	collection = client.Database("go-been-to").Collection("users")
+	collection = client.Database("myapp").Collection("users")
 }
 
-// RegisterUserRoutes registers user-related routes
 func RegisterUserRoutes(r *gin.Engine) {
+	//CORS configuration
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"http://localhost:4200"},
+		AllowCredentials: true,
+		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+	}
+
+	// Apply CORS middleware
+	r.Use(cors.New(corsConfig))
+
+	// Register routes
 	r.POST("/api/auth/signup", signupHandler)
 	r.POST("/api/auth/login", loginHandler)
 	r.Use(middleware.AuthMiddleware())
@@ -63,22 +80,24 @@ func signupHandler(c *gin.Context) {
 // Login handler
 func loginHandler(c *gin.Context) {
 	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var loginReq LoginRequest
+	if err := c.ShouldBindJSON(&loginReq); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Find user by email
-	filter := bson.M{"email": user.Email}
+	filter := bson.M{"email": loginReq.Email}
 	err := collection.FindOne(context.Background(), filter).Decode(&user)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials email"})
 		return
 	}
 
 	// Compare passwords
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(user.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+	if err := utils.CheckPassword(user.Password, loginReq.Password); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials passw"})
+		fmt.Println(err, "err")
 		return
 	}
 

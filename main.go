@@ -18,8 +18,11 @@ func main() {
 	// Initialize Gin router
 	r := gin.Default()
 
-	// Connect to MongoDB
-	connectToDB()
+	// Connect to MongoDB and check for errors
+	if err := connectToDB(); err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		return
+	}
 
 	// Register routes
 	routes.RegisterUserRoutes(r)
@@ -29,20 +32,30 @@ func main() {
 	if port == "" {
 		port = "5000"
 	}
-	err := r.Run(":" + port)
-	if err != nil {
+	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
 
 // Connect to MongoDB
-func connectToDB() {
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-	client, err := mongo.Connect(context.Background(), clientOptions)
+func connectToDB() error {
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017/myapp")
+	var err error
+
+	// Connect to MongoDB
+	client, err = mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		return err // Return the error if connection fails
 	}
 
-	// Set global client
+	// Ping the MongoDB server to verify connection
+	if err = client.Ping(context.Background(), nil); err != nil {
+		return err // Return the error if ping fails
+	}
+
+	// Set global client in routes package
 	routes.SetClient(client)
+
+	log.Println("Connected to MongoDB!")
+	return nil // Return nil if everything is fine
 }
