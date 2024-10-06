@@ -30,5 +30,5 @@ Before you begin, ensure you have the following installed on your system:
 ### Step 1: Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/go-been-to.git
+git clone https://github.com/IrinaBubela/been-to-backend-GO.git
 cd go-been-to
