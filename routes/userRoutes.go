@@ -29,7 +29,7 @@ func SetClient(client *mongo.Client) {
 }
 
 func RegisterUserRoutes(r *gin.Engine) {
-	//CORS configuration
+	// CORS configuration
 	corsConfig := cors.Config{
 		AllowOrigins:     []string{"http://localhost:4200"},
 		AllowCredentials: true,
@@ -43,7 +43,11 @@ func RegisterUserRoutes(r *gin.Engine) {
 	// Register routes
 	r.POST("/api/auth/signup", signupHandler)
 	r.POST("/api/auth/login", loginHandler)
+
+	// Protected routes (require authentication)
 	r.Use(middleware.AuthMiddleware())
+
+	r.GET("/api/countries", countriesHandler) // New /countries route
 }
 
 // Signup handler
@@ -113,4 +117,29 @@ func loginHandler(c *gin.Context) {
 
 	// Return token
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+}
+
+func countriesHandler(c *gin.Context) {
+	// Extract userId from the JWT token (set by AuthMiddleware)
+	userID, exists := c.Get("userId")
+	if !exists {
+		fmt.Println("!exists")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Convert userId to a filter for MongoDB
+	filter := bson.M{"_id": userID}
+
+	var user models.User
+
+	// Fetch the user from the database
+	err := collection.FindOne(context.Background(), filter).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Send the user's countries as a response
+	c.JSON(http.StatusOK, gin.H{"countries": user.Countries})
 }
