@@ -47,7 +47,9 @@ func RegisterUserRoutes(r *gin.Engine) {
 	// Protected routes (require authentication)
 	r.Use(middleware.AuthMiddleware())
 
-	r.GET("/api/countries", countriesHandler) // New /countries route
+	r.GET("/api/user/countries", GetCountriesHandler)       // New /countries route
+	r.POST("/api/user/addCountry", AddCountryHandler)       // Add a new country
+	r.POST("/api/user/removeCountry", RemoveCountryHandler) // Remove country from the list
 }
 
 // Signup handler
@@ -117,29 +119,4 @@ func loginHandler(c *gin.Context) {
 
 	// Return token
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
-}
-
-func countriesHandler(c *gin.Context) {
-	// Extract userId from the JWT token (set by AuthMiddleware)
-	userID, exists := c.Get("userId")
-	if !exists {
-		fmt.Println("!exists")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	// Convert userId to a filter for MongoDB
-	filter := bson.M{"_id": userID}
-
-	var user models.User
-
-	// Fetch the user from the database
-	err := collection.FindOne(context.Background(), filter).Decode(&user)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Send the user's countries as a response
-	c.JSON(http.StatusOK, gin.H{"countries": user.Countries})
 }
