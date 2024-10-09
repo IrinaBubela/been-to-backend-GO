@@ -58,7 +58,7 @@ func AddCountryHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, gin.H{"countries": user.Countries})
 }
 
 // RemoveCountryHandler allows the authenticated user to remove a country from their list
@@ -127,7 +127,7 @@ func RemoveCountryHandler(c *gin.Context) {
 	}
 
 	user.Countries = updatedCountries
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, gin.H{"countries": user.Countries})
 }
 
 // GetCountriesHandler returns the list of countries for the authenticated user
