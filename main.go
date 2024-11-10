@@ -39,23 +39,19 @@ func main() {
 
 // Connect to MongoDB
 func connectToDB() error {
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017/myapp")
+	clientOptions := options.Client().ApplyURI("mongodb://mongo:27017/myapp") // replace localhost with mongo if in docker-compose
 	var err error
 
-	// Connect to MongoDB
 	client, err = mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		return err // Return the error if connection fails
+		return err
 	}
 
-	// Ping the MongoDB server to verify connection
 	if err = client.Ping(context.Background(), nil); err != nil {
-		return err // Return the error if ping fails
+		return err
 	}
 
-	// Set global client in routes package
 	routes.SetClient(client)
-
 	log.Println("Connected to MongoDB!")
-	return nil // Return nil if everything is fine
+	return nil
 }
